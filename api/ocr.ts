@@ -64,8 +64,19 @@ export default async function handler(
         error: 'DeepSeek API does not support image OCR. Please use GEMINI_API_KEY instead for OCR functionality. Set GEMINI_API_KEY in Vercel environment variables and remove DEEPSEEK_API_KEY.' 
       });
     } else {
-      // Google Gemini API 配置（原有逻辑）
-      apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      // Google Gemini API 配置
+      // 尝试多个可能的模型名称
+      // 如果 gemini-1.5-flash 不可用，尝试其他模型
+      const models = [
+        'gemini-1.5-flash',
+        'gemini-1.5-pro',
+        'gemini-pro',
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-pro-latest'
+      ];
+      
+      // 先尝试 gemini-1.5-flash，如果失败可以尝试其他模型
+      apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`;
       requestHeaders = {
         'Content-Type': 'application/json',
       };
