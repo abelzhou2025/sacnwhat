@@ -32,10 +32,18 @@ export default async function handler(
     // 从环境变量获取 API 密钥
     const apiKey = process.env.DEEPSEEK_API_KEY || process.env.GEMINI_API_KEY;
     
+    // 调试日志（不记录实际密钥）
+    console.log('Environment check:', {
+      hasDEEPSEEK: !!process.env.DEEPSEEK_API_KEY,
+      hasGEMINI: !!process.env.GEMINI_API_KEY,
+      hasApiKey: !!apiKey,
+      envKeys: Object.keys(process.env).filter(k => k.includes('API') || k.includes('KEY'))
+    });
+    
     if (!apiKey) {
-      console.error('API key not configured');
+      console.error('API key not configured. Available env vars:', Object.keys(process.env).filter(k => k.includes('API') || k.includes('KEY')));
       return response.status(500).json({ 
-        error: 'API key not configured' 
+        error: 'API key not configured. Please set DEEPSEEK_API_KEY or GEMINI_API_KEY in Vercel environment variables.' 
       });
     }
 
@@ -67,9 +75,30 @@ export default async function handler(
 
     if (!apiResponse.ok) {
       const errorText = await apiResponse.text();
-      console.error('API Error:', errorText);
+      console.error('API Error:', {
+        status: apiResponse.status,
+        statusText: apiResponse.statusText,
+        error: errorText
+      });
+      
+      // 提供更友好的错误信息
+      let errorMessage = `API call failed: ${apiResponse.status}`;
+      try {
+        const errorData = JSON.parse(errorText);
+        if (errorData.error?.message) {
+          errorMessage = errorData.error.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch (e) {
+        // 如果无法解析 JSON，使用原始文本
+        if (errorText) {
+          errorMessage = errorText.substring(0, 200); // 限制长度
+        }
+      }
+      
       return response.status(apiResponse.status).json({ 
-        error: `API call failed: ${errorText}` 
+        error: errorMessage 
       });
     }
 
