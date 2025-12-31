@@ -1,0 +1,9 @@
+# Netlify redirects file
+# This file is copied to the dist directory during build
+
+# Functions - must come first
+/.netlify/functions/*  /.netlify/functions/:splat  200
+
+# SPA fallback - redirect all routes to index.html
+/*  /index.html  200
+

@@ -1,0 +1,37 @@
+[build]
+  command = "npm ci && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "18"
+  NPM_FLAGS = "--legacy-peer-deps"
+
+# Netlify Dev configuration
+[dev]
+  command = "npm run dev"
+  port = 8888
+  publish = "dist"
+  framework = "vite"
+
+# Functions configuration
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Redirects configuration
+# Note: Also using public/_redirects file for compatibility
+
+# Functions redirect (must be before SPA fallback)
+[[redirects]]
+  from = "/.netlify/functions/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# SPA fallback - redirect all other routes to index.html
+# This ensures React Router works correctly
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = true
+

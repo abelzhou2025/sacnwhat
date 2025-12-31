@@ -1,0 +1,30 @@
+{
+  "name": "scanwhat---image-to-text",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:netlify": "netlify dev",
+    "build": "vite build && node build-fix.js",
+    "preview": "vite preview",
+    "postbuild": "node build-fix.js",
+    "functions:build": "tsc -p netlify/functions/tsconfig.json",
+    "test:ocr": "tsx test-ocr.ts",
+    "test:browser": "node test-server.js",
+    "test:mobile": "echo '🚀 启动开发服务器进行移动端测试...' && npm run dev"
+  },
+  "dependencies": {
+    "react-dom": "^19.2.3",
+    "react": "^19.2.3"
+  },
+  "devDependencies": {
+    "@netlify/functions": "^2.4.1",
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "netlify-cli": "^20.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}

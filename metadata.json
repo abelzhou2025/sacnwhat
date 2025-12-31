@@ -1,0 +1,7 @@
+{
+  "name": "ScanWhat - Image to Text",
+  "description": "A web application that allows users to take a picture of text or upload an image, and uses AI to extract the text into an editable format.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

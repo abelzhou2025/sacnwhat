@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR 功能测试 - ScanWhat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(99, 102, 241, 0.3);
+            border-radius: 50%;
+            border-top-color: #6366f1;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">🧪 OCR 功能测试</h1>
+        <p class="text-gray-600 dark:text-gray-400 mb-8">在浏览器中直接测试 OCR 功能</p>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">📸 上传图片</h2>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    选择图片或拍照
+                </label>
+                <input 
+                    type="file" 
+                    id="imageInput" 
+                    accept="image/*" 
+                    capture="environment"
+                    class="block w-full text-sm text-gray-500 dark:text-gray-400
+                           file:mr-4 file:py-2 file:px-4
+                           file:rounded-full file:border-0
+                           file:text-sm file:font-semibold
+                           file:bg-indigo-50 file:text-indigo-700
+                           hover:file:bg-indigo-100
+                           dark:file:bg-indigo-900 dark:file:text-indigo-300"
+                />
+            </div>
+
+            <div id="previewContainer" class="mb-4 hidden">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    图片预览
+                </label>
+                <img id="previewImage" src="" alt="Preview" class="max-w-full h-auto rounded-lg shadow-md max-h-64">
+            </div>
+
+            <div class="flex gap-4">
+                <button 
+                    id="testButton" 
+                    onclick="testOCR()"
+                    class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled
+                >
+                    <span id="buttonText">🚀 开始测试 OCR</span>
+                    <span id="loadingSpinner" class="loading hidden"></span>
+                </button>
+                <button 
+                    onclick="clearAll()"
+                    class="bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white font-bold py-2 px-6 rounded-lg transition-colors"
+                >
+                    🗑️ 清除
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">⚙️ 配置</h2>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    API 端点 (Function URL)
+                </label>
+                <input 
+                    type="text" 
+                    id="apiEndpoint" 
+                    value="/.netlify/functions/ocr"
+                    placeholder="/.netlify/functions/ocr"
+                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
+                           bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                           focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    本地开发: http://localhost:8888/.netlify/functions/ocr<br>
+                    生产环境: /.netlify/functions/ocr
+                </p>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    测试模式
+                </label>
+                <select 
+                    id="testMode"
+                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
+                           bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                           focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                    <option value="local">本地开发 (Netlify Dev)</option>
+                    <option value="production">生产环境</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">📊 测试结果</h2>
+            
+            <div id="resultContainer" class="hidden">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        提取的文本
+                    </label>
+                    <textarea 
+                        id="resultText" 
+                        readonly
+                        class="w-full h-64 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
+                               bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white
+                               font-mono text-sm resize-none"
+                    ></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            处理时间
+                        </label>
+                        <div id="processingTime" class="text-lg font-semibold text-indigo-600 dark:text-indigo-400">
+                            -
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            文本长度
+                        </label>
+                        <div id="textLength" class="text-lg font-semibold text-indigo-600 dark:text-indigo-400">
+                            -
+                        </div>
+                    </div>
+                </div>
+
+                <button 
+                    onclick="copyText()"
+                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg transition-colors"
+                >
+                    📋 复制文本
+                </button>
+            </div>
+
+            <div id="errorContainer" class="hidden">
+                <div class="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-500 rounded-lg p-4">
+                    <h3 class="text-red-800 dark:text-red-400 font-semibold mb-2">❌ 错误</h3>
+                    <pre id="errorText" class="text-red-600 dark:text-red-300 text-sm whitespace-pre-wrap"></pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-500 rounded-lg p-4">
+            <h3 class="text-blue-800 dark:text-blue-400 font-semibold mb-2">ℹ️ 使用说明</h3>
+            <ul class="text-blue-700 dark:text-blue-300 text-sm space-y-1 list-disc list-inside">
+                <li>选择一张包含文字的图片</li>
+                <li>点击"开始测试 OCR"按钮</li>
+                <li>等待处理完成，查看提取的文本</li>
+                <li>如果使用本地开发，确保运行 <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">npm run dev:netlify</code></li>
+                <li>查看浏览器 Console (F12) 获取详细日志</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+        let imageBase64 = null;
+
+        // 监听文件选择
+        document.getElementById('imageInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                selectedFile = file;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const dataUrl = e.target.result;
+                    imageBase64 = dataUrl.split(',')[1]; // 移除 data:image/...;base64, 前缀
+                    
+                    // 显示预览
+                    document.getElementById('previewImage').src = dataUrl;
+                    document.getElementById('previewContainer').classList.remove('hidden');
+                    
+                    // 启用按钮
+                    document.getElementById('testButton').disabled = false;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 监听测试模式变化
+        document.getElementById('testMode').addEventListener('change', function(e) {
+            const endpoint = document.getElementById('apiEndpoint');
+            if (e.target.value === 'local') {
+                endpoint.value = 'http://localhost:8888/.netlify/functions/ocr';
+            } else {
+                endpoint.value = '/.netlify/functions/ocr';
+            }
+        });
+
+        // 测试 OCR 功能
+        async function testOCR() {
+            if (!selectedFile || !imageBase64) {
+                alert('请先选择一张图片');
+                return;
+            }
+
+            const button = document.getElementById('testButton');
+            const buttonText = document.getElementById('buttonText');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const resultContainer = document.getElementById('resultContainer');
+            const errorContainer = document.getElementById('errorContainer');
+            const endpoint = document.getElementById('apiEndpoint').value;
+
+            // 显示加载状态
+            button.disabled = true;
+            buttonText.textContent = '⏳ 处理中...';
+            loadingSpinner.classList.remove('hidden');
+            resultContainer.classList.add('hidden');
+            errorContainer.classList.add('hidden');
+
+            const startTime = Date.now();
+
+            try {
+                console.log('🚀 开始 OCR 测试');
+                console.log('📸 图片:', selectedFile.name, selectedFile.size, 'bytes');
+                console.log('🔗 端点:', endpoint);
+                console.log('📝 MIME Type:', selectedFile.type);
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        base64Image: imageBase64,
+                        mimeType: selectedFile.type,
+                    }),
+                });
+
+                const duration = Date.now() - startTime;
+
+                console.log('⏱️ 响应时间:', duration, 'ms');
+                console.log('📊 状态码:', response.status);
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: await response.text() }));
+                    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('✅ 成功!', data);
+
+                // 显示结果
+                document.getElementById('resultText').value = data.text || '未提取到文本';
+                document.getElementById('processingTime').textContent = duration + ' ms';
+                document.getElementById('textLength').textContent = (data.text || '').length + ' 字符';
+                
+                resultContainer.classList.remove('hidden');
+                errorContainer.classList.add('hidden');
+
+            } catch (error) {
+                console.error('❌ 错误:', error);
+                
+                // 显示错误
+                document.getElementById('errorText').textContent = error.message || '未知错误';
+                errorContainer.classList.remove('hidden');
+                resultContainer.classList.add('hidden');
+            } finally {
+                // 恢复按钮状态
+                button.disabled = false;
+                buttonText.textContent = '🚀 开始测试 OCR';
+                loadingSpinner.classList.add('hidden');
+            }
+        }
+
+        // 复制文本
+        function copyText() {
+            const text = document.getElementById('resultText').value;
+            navigator.clipboard.writeText(text).then(() => {
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = '✅ 已复制!';
+                button.classList.add('bg-green-700');
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove('bg-green-700');
+                }, 2000);
+            });
+        }
+
+        // 清除所有
+        function clearAll() {
+            document.getElementById('imageInput').value = '';
+            document.getElementById('previewContainer').classList.add('hidden');
+            document.getElementById('resultContainer').classList.add('hidden');
+            document.getElementById('errorContainer').classList.add('hidden');
+            document.getElementById('testButton').disabled = true;
+            selectedFile = null;
+            imageBase64 = null;
+        }
+
+        // 页面加载时的提示
+        window.addEventListener('load', function() {
+            console.log('🧪 OCR 测试页面已加载');
+            console.log('📋 使用说明:');
+            console.log('  1. 选择一张包含文字的图片');
+            console.log('  2. 点击"开始测试 OCR"按钮');
+            console.log('  3. 查看结果和日志');
+        });
+    </script>
+</body>
+</html>
+
