@@ -66,7 +66,10 @@ export default async function handler(
     // gemini-1.5-pro 在 v1beta 中不可用，已移除
     // gemini-2.0-flash-exp 是实验性模型，配额限制严格，已移除
     const modelConfigs = [
-      { version: 'v1beta', model: 'gemini-1.5-flash' },      // 最快，支持图片，推荐，确认可用
+      { version: 'v1beta', model: 'gemini-1.5-flash' },      // Primary choice
+      { version: 'v1beta', model: 'gemini-1.5-flash-latest' }, // Fallback alias
+      { version: 'v1beta', model: 'gemini-1.5-flash-001' },   // Specific version
+      { version: 'v1beta', model: 'gemini-1.5-pro' },         // Stronger model fallback
     ];
 
     const requestHeaders = {
