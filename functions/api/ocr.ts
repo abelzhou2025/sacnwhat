@@ -72,12 +72,11 @@ export async function onRequestPost(context: any) {
     }
 
     // Google Gemini API 配置
-    // 只使用 v1beta API，只使用确认可用的模型
-    // gemini-pro 在 v1beta 中不可用，已移除
+    // 只使用 v1beta API，只使用稳定模型（避免实验性模型的配额限制）
+    // gemini-2.0-flash-exp 是实验性模型，免费层配额限制严格，已移除
     const modelConfigs = [
-      { version: 'v1beta', model: 'gemini-1.5-flash' },      // 最快，支持图片，推荐
-      { version: 'v1beta', model: 'gemini-1.5-pro' },        // 高质量，支持图片
-      { version: 'v1beta', model: 'gemini-2.0-flash-exp' }, // 实验性，最新（如果可用）
+      { version: 'v1beta', model: 'gemini-1.5-flash' },      // 最快，支持图片，推荐，配额更宽松
+      { version: 'v1beta', model: 'gemini-1.5-pro' },        // 高质量，支持图片，配额更宽松
     ];
 
     const requestHeaders = {
