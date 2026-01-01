@@ -2,13 +2,23 @@
 
 ## 错误信息
 
+### 错误 1: Missing entry-point
 ```
 ✘ [ERROR] Missing entry-point to Worker script or to assets directory
 ```
 
+### 错误 2: Workers-specific command in Pages project
+```
+✘ [ERROR] It looks like you've run a Workers-specific command in a Pages project.
+For Pages, please run `wrangler pages deploy` instead.
+```
+
 ## 问题原因
 
-这个错误通常是因为在 Cloudflare Pages 项目设置中配置了自定义部署命令（Deploy command）`npx wrangler deploy`，但 `wrangler deploy` 是用于 Cloudflare Workers 的，不是用于 Pages 的。
+这些错误都是因为在 Cloudflare Pages 项目设置中配置了自定义部署命令（Deploy command）`npx wrangler deploy`，但：
+- `wrangler deploy` 是用于 **Cloudflare Workers** 的
+- `wrangler pages deploy` 是用于 **Cloudflare Pages** 的
+- **最佳实践**：完全移除自定义部署命令，让 Cloudflare Pages 自动处理
 
 ## 解决方案
 
@@ -25,15 +35,21 @@
 6. 保存设置
 7. 重新部署项目
 
-### 方法 2：使用正确的 Pages 部署命令（如果需要自定义）
+### 方法 2：使用正确的 Pages 部署命令（不推荐，仅用于特殊需求）
 
-如果你确实需要使用自定义部署命令，应该使用：
+如果你确实需要使用自定义部署命令（通常不需要），应该使用：
 
 ```bash
 npx wrangler pages deploy dist --project-name=scanwhat
 ```
 
-而不是 `npx wrangler deploy`。
+**注意**：你需要先安装 wrangler 并登录：
+```bash
+npm install -g wrangler
+wrangler login
+```
+
+但**强烈建议使用方法 1**，移除自定义部署命令，让 Cloudflare Pages 自动处理。
 
 ## Cloudflare Pages 标准流程
 
