@@ -7,10 +7,10 @@
  */
 export const extractTextFromImage = async (base64ImageData: string, mimeType: string): Promise<string> => {
   try {
-    // Call Vercel API route (or Netlify Function if on Netlify)
+    // Call API route (detects platform automatically)
     // This keeps the API key secure on the server side
     // Detect which platform we're on
-    let functionUrl = '/api/ocr'; // Default to Vercel
+    let functionUrl = '/api/ocr'; // Default to Vercel/Cloudflare Pages
     
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
@@ -18,7 +18,8 @@ export const extractTextFromImage = async (base64ImageData: string, mimeType: st
       if (hostname.includes('netlify.app') || hostname.includes('netlify.com')) {
         functionUrl = '/.netlify/functions/ocr';
       }
-      // Otherwise use Vercel API route
+      // Cloudflare Pages uses /api/ocr (same as Vercel)
+      // Vercel also uses /api/ocr
     }
     
     const response = await fetch(functionUrl, {
