@@ -66,10 +66,11 @@ export default async function handler(
     // gemini-1.5-pro 在 v1beta 中不可用，已移除
     // gemini-2.0-flash-exp 是实验性模型，配额限制严格，已移除
     const modelConfigs = [
-      { version: 'v1beta', model: 'gemini-1.5-flash' },      // Primary choice
-      { version: 'v1beta', model: 'gemini-1.5-flash-latest' }, // Fallback alias
-      { version: 'v1beta', model: 'gemini-1.5-flash-001' },   // Specific version
-      { version: 'v1beta', model: 'gemini-1.5-pro' },         // Stronger model fallback
+      { version: 'v1beta', model: 'gemini-1.5-flash' },
+      { version: 'v1', model: 'gemini-1.5-flash' },           // Try v1 stable
+      { version: 'v1beta', model: 'gemini-1.5-flash-latest' },
+      { version: 'v1beta', model: 'gemini-1.5-flash-001' },
+      { version: 'v1beta', model: 'gemini-1.5-pro' },
     ];
 
     const requestHeaders = {
@@ -92,7 +93,9 @@ export default async function handler(
     };
 
     // 尝试每个模型配置，直到成功
+    const errors: any[] = [];
     let lastError: any = null;
+    
     for (const config of modelConfigs) {
       const apiUrl = `https://generativelanguage.googleapis.com/${config.version}/models/${config.model}:generateContent?key=${apiKey}`;
       
@@ -125,58 +128,55 @@ export default async function handler(
           // 记录错误，继续尝试下一个模型
           const errorText = await apiResponse.text();
           console.warn(`Model ${config.version}/${config.model} failed:`, errorText);
-          lastError = {
+          
+          let errorJson;
+          try {
+             errorJson = JSON.parse(errorText);
+          } catch (e) {
+             errorJson = { message: errorText };
+          }
+
+          const errorInfo = {
+            model: `${config.version}/${config.model}`,
             status: apiResponse.status,
-            error: errorText
+            error: errorJson
           };
+          errors.push(errorInfo);
+          lastError = errorInfo;
           // 继续尝试下一个模型
           continue;
         }
       } catch (error: any) {
         console.warn(`Model ${config.version}/${config.model} error:`, error.message);
-        lastError = error;
+        const errorInfo = {
+            model: `${config.version}/${config.model}`,
+            status: 500,
+            error: error.message
+        };
+        errors.push(errorInfo);
+        lastError = errorInfo;
         continue;
       }
     }
 
     // 所有模型都失败了
-    console.error('All Gemini models failed. Last error:', lastError);
-    let errorMessage = 'All Gemini API models failed. Please check your API key and model availability.';
-    let retryAfter = null;
+    console.error('All Gemini models failed.', errors);
     
-    if (lastError) {
-      try {
-        const errorData = typeof lastError.error === 'string' ? JSON.parse(lastError.error) : lastError.error;
-        if (errorData?.error?.message) {
-          errorMessage = errorData.error.message;
-          
-          // 检查是否是配额错误，提取重试时间
-          if (errorMessage.includes('quota') || errorMessage.includes('Quota exceeded')) {
-            const retryMatch = errorMessage.match(/Please retry in ([\d.]+)s/);
-            if (retryMatch) {
-              retryAfter = Math.ceil(parseFloat(retryMatch[1]));
-              errorMessage = `Quota exceeded. Please wait ${retryAfter} seconds and try again. For more information, visit: https://ai.google.dev/gemini-api/docs/rate-limits`;
-            } else {
-              errorMessage = 'API quota exceeded. Please wait a moment and try again, or check your quota at https://ai.dev/usage?tab=rate-limit';
-            }
-          }
-        }
-      } catch (e) {
-        if (lastError.error) {
-          const errorText = typeof lastError.error === 'string' ? lastError.error : JSON.stringify(lastError.error);
-          errorMessage = errorText.substring(0, 200);
-          
-          // 检查配额错误
-          if (errorText.includes('quota') || errorText.includes('Quota exceeded')) {
-            errorMessage = 'API quota exceeded. Please wait a moment and try again, or check your quota at https://ai.dev/usage?tab=rate-limit';
-          }
-        }
-      }
+    // Construct a more helpful error message
+    let errorMessage = 'All Gemini API models failed. ';
+    
+    // Check key common issues
+    if (errors.some(e => JSON.stringify(e).includes('not found'))) {
+        errorMessage += 'Models not found. Please ensure your API Key is from Google AI Studio (not Vertex AI) and "Generative Language API" is enabled in Google Cloud Console.';
+    } else if (errors.some(e => JSON.stringify(e).includes('quota'))) {
+        errorMessage += 'Quota exceeded. Please try again later.';
+    } else {
+        errorMessage += 'Please check the details below.';
     }
-    
+
     return response.status(lastError?.status || 500).json({ 
       error: errorMessage,
-      retryAfter: retryAfter
+      details: errors // Return full error list for debugging
     });
   } catch (error: any) {
     console.error('Error in OCR function:', error);
