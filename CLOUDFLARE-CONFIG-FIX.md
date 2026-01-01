@@ -5,21 +5,24 @@
 你的当前配置：
 ```
 Build command: npm run build          ✅ 正确
-Deploy command: /                     ❌ 错误！应该留空
-Version command: npx wrangler versions upload  ❌ 错误！应该留空
+Deploy command: /                     ❌ 错误！需要正确的命令
+Version command: npx wrangler versions upload  ❌ 错误！应该留空或使用正确命令
 Root directory: /                     ✅ 正确
 ```
 
 ## ✅ 正确的配置
 
-应该是：
+如果系统要求填写 Deploy command（显示 "Required"），使用以下配置：
+
 ```
 Build command: npm run build          ✅
-Deploy command: (留空)                ✅ 不要填写任何内容
-Version command: (留空)               ✅ 不要填写任何内容
+Deploy command: npx wrangler pages deploy dist  ✅ 如果系统要求必填
+Version command: (留空)               ✅ 如果可选，留空；如果必填，使用占位符
 Root directory: /                    ✅
 Build output directory: dist          ✅
 ```
+
+**注意**：如果 Deploy command 字段显示 "Required"（必填），必须填写有效的命令。
 
 ## 🔧 修复步骤
 
@@ -35,13 +38,16 @@ Build output directory: dist          ✅
 
 #### Deploy command
 - **当前值**: `/`
-- **应该改为**: **完全删除，留空**
-- **操作**: 点击字段，删除所有内容，留空
+- **应该改为**: `npx wrangler pages deploy dist`
+- **操作**: 点击字段，删除 `/`，输入 `npx wrangler pages deploy dist`
+- **注意**: 如果字段显示 "Required"（必填），必须填写此命令
 
 #### Version command
 - **当前值**: `npx wrangler versions upload`
-- **应该改为**: **完全删除，留空**
-- **操作**: 点击字段，删除所有内容，留空
+- **应该改为**: **留空**（如果可选）或 `echo "Skipping version upload"`（如果必填）
+- **操作**: 
+  - 如果字段可选：删除所有内容，留空
+  - 如果字段必填（显示 "Required"）：输入 `echo "Skipping version upload"`
 
 #### Build command
 - **当前值**: `npm run build`
