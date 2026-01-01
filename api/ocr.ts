@@ -164,10 +164,33 @@ export default async function handler(
     
     // Construct a more helpful error message
     let errorMessage = 'All Gemini API models failed. ';
+    let availableModels: string[] = [];
+    
+    // Diagnostic: Try to list available models to see what the key has access to
+    try {
+        console.log('Attempting to list available models...');
+        const listResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        if (listResponse.ok) {
+            const listData = await listResponse.json();
+            if (listData.models) {
+                availableModels = listData.models.map((m: any) => m.name.replace('models/', ''));
+                console.log('Available models:', availableModels);
+            }
+        } else {
+            console.warn('ListModels failed:', await listResponse.text());
+        }
+    } catch (e) {
+        console.error('ListModels error:', e);
+    }
     
     // Check key common issues
     if (errors.some(e => JSON.stringify(e).includes('not found'))) {
-        errorMessage += 'Models not found. Please ensure your API Key is from Google AI Studio (not Vertex AI) and "Generative Language API" is enabled in Google Cloud Console.';
+        errorMessage += 'Models not found for your API Key. ';
+        if (availableModels.length > 0) {
+             errorMessage += `Your key has access to: ${availableModels.join(', ')}. Please update the code to use one of these.`;
+        } else {
+             errorMessage += 'The API Key appears to have NO access to any models. Please ensure "Generative Language API" is enabled in Google Cloud Console or generate a new key in Google AI Studio.';
+        }
     } else if (errors.some(e => JSON.stringify(e).includes('quota'))) {
         errorMessage += 'Quota exceeded. Please try again later.';
     } else {
@@ -176,7 +199,8 @@ export default async function handler(
 
     return response.status(lastError?.status || 500).json({ 
       error: errorMessage,
-      details: errors // Return full error list for debugging
+      details: errors,      // Return full error list for debugging
+      availableModels: availableModels // Return what we found
     });
   } catch (error: any) {
     console.error('Error in OCR function:', error);
