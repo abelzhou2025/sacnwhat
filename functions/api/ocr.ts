@@ -72,11 +72,14 @@ export async function onRequestPost(context: any) {
     }
 
     // Google Gemini API 配置
-    // 只使用 v1beta API，只使用确认可用的模型
-    // gemini-1.5-pro 在 v1beta 中不可用，已移除
-    // gemini-2.0-flash-exp 是实验性模型，配额限制严格，已移除
+    // 使用确认可用的模型 (Gemini 2.0/2.5)
+    // 根据之前的诊断，用户 key 支持这些模型
     const modelConfigs = [
-      { version: 'v1beta', model: 'gemini-1.5-flash' },      // 最快，支持图片，推荐，确认可用
+      { version: 'v1beta', model: 'gemini-2.0-flash' },       // Primary
+      { version: 'v1beta', model: 'gemini-2.5-flash' },       // High performance fallback
+      { version: 'v1beta', model: 'gemini-flash-latest' },    // Latest alias
+      { version: 'v1beta', model: 'gemini-2.0-flash-lite' },  // Lite version
+      { version: 'v1beta', model: 'gemini-2.0-flash-001' },   // Specific version
     ];
 
     const requestHeaders = {
@@ -101,7 +104,9 @@ export async function onRequestPost(context: any) {
     };
 
     // 尝试每个模型配置，直到成功
+    const errors: any[] = [];
     let lastError: any = null;
+
     for (const config of modelConfigs) {
       const apiUrl = `https://generativelanguage.googleapis.com/${config.version}/models/${config.model}:generateContent?key=${apiKey}`;
 
@@ -139,50 +144,86 @@ export async function onRequestPost(context: any) {
             headers: { 'Content-Type': 'application/json', ...corsHeaders },
           });
         } else {
-          // 记录错误，继续尝试下一个模型
-          const errorText = await apiResponse.text();
-          console.warn(
-            `Model ${config.version}/${config.model} failed:`,
-            errorText
-          );
-          lastError = {
-            status: apiResponse.status,
-            error: errorText,
-          };
-          // 继续尝试下一个模型
-          continue;
+            // 记录错误
+            const errorText = await apiResponse.text();
+            console.warn(`Model ${config.version}/${config.model} failed:`, errorText);
+           
+            let errorJson;
+            try {
+               errorJson = JSON.parse(errorText);
+            } catch (e) {
+               errorJson = { message: errorText };
+            }
+  
+            const errorInfo = {
+              model: `${config.version}/${config.model}`,
+              status: apiResponse.status,
+              error: errorJson
+            };
+            errors.push(errorInfo);
+            lastError = errorInfo;
+            continue;
         }
       } catch (error: any) {
         console.warn(
           `Model ${config.version}/${config.model} error:`,
           error.message
         );
-        lastError = error;
+        const errorInfo = {
+            model: `${config.version}/${config.model}`,
+            status: 500,
+            error: error.message
+        };
+        errors.push(errorInfo);
+        lastError = errorInfo;
         continue;
       }
     }
 
     // 所有模型都失败了
-    console.error('All Gemini models failed. Last error:', lastError);
-    let errorMessage =
-      'All Gemini API models failed. Please check your API key and model availability.';
-    if (lastError) {
-      try {
-        const errorData =
-          typeof lastError.error === 'string'
-            ? JSON.parse(lastError.error)
-            : lastError.error;
-        if (errorData?.error?.message) {
-          errorMessage = errorData.error.message;
+    console.error('All Gemini models failed.', errors);
+    
+    // Construct a more helpful error message
+    let errorMessage = 'All Gemini API models failed. ';
+    let availableModels: string[] = [];
+    
+    // Diagnostic
+     try {
+        console.log('Attempting to list available models...');
+        // Note: fetch is available globally in Cloudflare Workers/Pages
+        const listResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        if (listResponse.ok) {
+            const listData = await listResponse.json();
+            if (listData.models) {
+                availableModels = listData.models.map((m: any) => m.name.replace('models/', ''));
+                console.log('Available models:', availableModels);
+            }
+        } else {
+            console.warn('ListModels failed:', await listResponse.text());
         }
-      } catch (e) {
-        if (lastError.error) {
-          errorMessage = lastError.error.substring(0, 200);
-        }
-      }
+    } catch (e) {
+        console.error('ListModels error:', e);
     }
 
-    return new Response(JSON.stringify({ error: errorMessage }), {
+      // Check key common issues
+    if (errors.some(e => JSON.stringify(e).includes('not found') || JSON.stringify(e).includes('API key not valid') || JSON.stringify(e).includes('bad request'))) {
+         errorMessage += 'Models not found or API Key issue. ';
+        if (availableModels.length > 0) {
+             errorMessage += `Your key has access to: ${availableModels.join(', ')}. Please update the code to use one of these.`;
+        } else {
+             errorMessage += 'The API Key appears to have NO access to any models. Please ensure "Generative Language API" is enabled in Google Cloud Console or generate a new key in Google AI Studio.';
+        }
+    } else if (errors.some(e => JSON.stringify(e).includes('quota'))) {
+        errorMessage += 'Quota exceeded. Please try again later.';
+    } else {
+        errorMessage += 'Please check the details below.';
+    }
+
+    return new Response(JSON.stringify({ 
+      error: errorMessage,
+      details: errors, 
+      availableModels: availableModels
+    }), {
       status: lastError?.status || 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
